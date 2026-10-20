@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#050b0e">
+<title>4C-105 四冲程柴油机 · 交互式 3D 解剖仿真</title>
+<meta name="description" content="可直接运行的四冲程柴油机三维交互仿真：完整零件、实时曲柄连杆与配气运动、油液流线、点击整机拆解、剖面拆解、三视图与内嵌背景音乐。">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%23050a0d'/%3E%3Cpath d='M14 42V22l9-7 9 7v20l-9 7-9-7zm18 0V22l9-7 9 7v20l-9 7-9-7z' fill='none' stroke='%237cdde7' stroke-width='2'/%3E%3C/svg%3E">
+<style>/*__CSS__*/</style>
+</head>
+<body>
+<div class="app" id="app">
+  <canvas id="sim-canvas" aria-label="四冲程柴油机三维交互模型"></canvas>
+  <div class="fx-backdrop" aria-hidden="true"></div>
+  <div class="fx-vignette" aria-hidden="true"></div>
+  <div class="fx-grain" aria-hidden="true"></div>
+
+  <header class="topbar">
+    <div class="brand-block">
+      <div class="eyebrow-row">
+        <span class="eyebrow">VIRTUAL POWERTRAIN LAB <i>/</i> UNIT 04</span>
+        <span class="online-chip"><i></i><span id="onlineLabel">SIMULATION ONLINE</span></span>
+      </div>
+      <h1>4C<span class="dot">·</span>105 <em>DIESEL</em></h1>
+      <div class="brand-sub">
+        <span>直列四缸 · 涡轮增压 · 四冲程交互解剖仿真</span>
+        <span class="dim">105 × 130 mm / 17.5 : 1</span>
+        <span class="mode-chip"><i></i><span id="sceneModeText">完整装配</span></span>
+      </div>
+    </div>
+    <div class="topbar-tail">
+      <button class="top-data-btn" id="btnTelemetryMobile" aria-label="打开台架数据" aria-expanded="false" aria-controls="telemetry">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 15a8 8 0 0 1 16 0M12 15l4-5M6 18h12" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>
+        <span>数据</span>
+      </button>
+    </div>
+  </header>
+
+  <aside class="bench-panel" id="telemetry" aria-label="台架实时数据">
+    <div class="bench-head">
+      <div>
+        <span class="bench-kicker">BENCH TELEMETRY / 4C-105</span>
+        <h2>台架实时数据 <em>LIVE</em></h2>
+      </div>
+      <div class="bench-head-actions">
+        <div class="bench-transport">
+          <button class="bench-tool" id="btnRun" aria-label="暂停发动机运转" title="暂停 / 继续 (Space)">
+            <svg class="ico-pause" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 5h4v14H7zM13 5h4v14h-4z"/></svg>
+            <svg class="ico-play" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5l11 7-11 7z"/></svg>
+          </button>
+          <button class="bench-tool text" id="btnStep" title="单步 +30° CA" aria-label="单步前进30度曲轴转角">+30</button>
+          <button class="bench-tool" id="btnReset" title="重置仿真" aria-label="重置仿真">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 9a8 8 0 1 1-.2 4M5 4v5h5" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>
+          </button>
+        </div>
+        <span class="bench-live"><i></i>LIVE</span>
+        <button class="panel-close" id="btnTelemetryClose" aria-label="关闭台架数据">×</button>
+      </div>
+    </div>
+
+    <div class="bench-scroll">
+      <section class="rpm-block">
+        <div class="rpm-hero">
+          <div class="rpm-number"><b id="rpmValue">850</b><span>rpm</span></div>
+          <span class="rpm-caption">曲轴实时转速 <em>CRANKSHAFT</em></span>
+        </div>
+        <div class="rpm-ruler" aria-hidden="true">
+          <div class="rpm-ticks"></div>
+          <div class="rpm-track"><i id="rpmFill"></i></div>
+          <b class="rpm-cursor" id="rpmCursor"></b>
+          <i class="rpm-target-cursor" id="rpmTargetCursor"></i>
+        </div>
+        <div class="rpm-scale"><span>0</span><span>1,200</span><span>2,400</span></div>
+        <div class="bench-control-row">
+          <span>目标转速 <em>SPEED</em></span>
+          <b><span id="rpmTargetValue">850</span> <small>rpm</small></b>
+        </div>
+        <input id="rpmSlider" class="bench-range" type="range" min="500" max="2400" step="10" value="850" aria-label="目标转速">
+      </section>
+
+      <section class="bench-metrics" aria-label="实时参数">
+        <div class="bench-metric coolant">
+          <span class="metric-dot"></span>
+          <span class="metric-name">冷却液 <em>COOLANT</em></span>
+          <span class="metric-value"><b id="tempValue">87.4</b><small>°C</small></span>
+          <span class="metric-bar"><i id="tempBar"></i></span>
+        </div>
+        <div class="bench-metric oil">
+          <span class="metric-dot"></span>
+          <span class="metric-name">机油压力 <em>OIL</em></span>
+          <span class="metric-value"><b id="oilValue">4.1</b><small>bar</small></span>
+          <span class="metric-bar"><i id="oilBar"></i></span>
+        </div>
+        <div class="bench-metric boost">
+          <span class="metric-dot"></span>
+          <span class="metric-name">增压压力 <em>BOOST</em></span>
+          <span class="metric-value"><b id="boostValue">1.00</b><small>bar</small></span>
+          <span class="metric-bar"><i id="boostBar"></i></span>
+        </div>
+      </section>
+
+      <section class="load-block">
+        <div class="bench-control-row">
+          <span>发动机负荷 <em>LOAD</em></span>
+          <b><span id="loadTargetValue">46</span> <small>%</small></b>
+        </div>
+        <input id="loadSlider" class="bench-range load" type="range" min="0" max="100" step="1" value="46" aria-label="发动机负荷">
+      </section>
+
+      <section class="phase-summary" aria-label="曲轴相位">
+        <div class="phase-angle">
+          <span>曲轴角 <em>CRANK</em></span>
+          <b><span id="angleValue">0.0</span><small>°CA</small></b>
+        </div>
+        <div class="phase-current">
+          <span class="stroke-index" id="strokeNum">01</span>
+          <div><b id="strokeName">进气</b><em id="strokeEN">INTAKE</em></div>
+        </div>
+        <div class="phase-cycle">
+          <span>循环 <em>CYCLE</em></span>
+          <b id="cycleCount">01</b>
+        </div>
+      </section>
+
+      <section class="cylinder-section">
+        <div class="bench-section-title"><span>各缸相位</span><em>CYLINDER PHASE</em></div>
+        <div class="cylinder-grid" id="cylinderGrid"></div>
+      </section>
+
+      <section class="view-section">
+        <div class="bench-section-title"><span>三视图</span><em>CAMERA / VIEWS</em></div>
+        <div class="view-grid">
+          <button class="view-btn is-active" data-view="free">轴测<em>ISO</em></button>
+          <button class="view-btn" data-view="front">前视<em>FRONT</em></button>
+          <button class="view-btn" data-view="side">侧视<em>SIDE</em></button>
+          <button class="view-btn" data-view="top">俯视<em>TOP</em></button>
+        </div>
+        <button class="section-toggle" id="btnSection" aria-pressed="false">
+          <span class="section-toggle-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24"><path d="M4 8.5L12 4l8 4.5-8 4.5-8-4.5zm0 4L12 17l8-4.5M4 16.5L12 21l8-4.5"/></svg>
+          </span>
+          <span class="section-toggle-copy"><b>剖面</b><em id="sectionHint">拆解 + X-Ray · 再次点击还原</em></span>
+          <span class="section-state" id="sectionState">OFF</span>
+        </button>
+      </section>
+
+      <footer class="bench-foot">
+        <span class="bgm-note">BGM · brworkstudio《迷离时空》</span>
+        <span><b id="fpsValue">60</b> FPS</span>
+      </footer>
+    </div>
+  </aside>
+
+  <div class="status-toast" id="statusToast" role="status" aria-live="polite"></div>
+  <div class="callout-layer" id="calloutLayer" hidden aria-hidden="true"></div>
+
+  <div class="part-tooltip" id="partTooltip" role="tooltip" aria-hidden="true">
+    <div class="tooltip-cut corner-tl"></div><div class="tooltip-cut corner-br"></div>
+    <div class="part-tooltip-head">
+      <span class="part-category" id="ttCategory">运动件 · CRANK TRAIN</span>
+      <span class="part-state" id="ttState"><i></i>正在压缩上行</span>
+    </div>
+    <div class="part-name-row">
+      <h2 id="ttName">活塞 #1</h2>
+      <span id="ttEn">Piston #1</span>
+    </div>
+    <div class="part-meta">
+      <div><span>材料 / MATERIAL</span><b id="ttMaterial">AlSi12CuNiMg 锻铝合金</b></div>
+      <div><span>工艺 / PROCESS</span><b id="ttProcess">等温锻造 · 数控车削</b></div>
+    </div>
+    <div class="part-function">
+      <span>功能说明 / FUNCTION</span>
+      <p id="ttFunction"></p>
+    </div>
+    <div class="part-specs" id="ttSpecs"></div>
+    <div class="part-tooltip-foot">
+      <span>LIVE MODEL DATA</span>
+      <span id="ttCounter">#01 / 04</span>
+    </div>
+  </div>
+  <div class="hover-reticle" id="hoverReticle" aria-hidden="true"><i></i><b></b></div>
+
+  <audio id="bgm" loop preload="auto" playsinline src="__BGM_SRC__"></audio>
+
+  <div class="loading-screen" id="loadingScreen">
+    <div class="loader-inner">
+      <div class="loader-brand"><span>VIRTUAL POWERTRAIN LAB</span><b>4C<span>·</span>105</b></div>
+      <div class="loader-title">正在装配四冲程柴油机</div>
+      <div class="loader-sub">INITIALIZING KINEMATIC MODEL <span>·</span> 8 VALVES <span>·</span> 4 CYLINDERS</div>
+      <div class="loader-line"><i id="loaderProgress"></i></div>
+      <div class="loader-meta"><span id="loaderStatus">BUILDING GEOMETRY</span><span>0.1 mm VISUAL TOLERANCE</span></div>
+    </div>
+  </div>
+
+  <div class="webgl-fallback" id="webglFallback" hidden>
+    <div>
+      <span>RENDERER OFFLINE</span>
+      <h2>无法初始化 WebGL 渲染器</h2>
+      <p>请使用最新版 Chrome 或 Edge 浏览器，并确保硬件加速已开启。本页面完全离线运行，无需网络连接。</p>
+    </div>
+  </div>
+</div>
+<noscript><div style="position:fixed;inset:0;z-index:300;display:flex;align-items:center;justify-content:center;background:#04090c;color:#dce8e5;font:14px sans-serif;text-align:center;padding:30px">本仿真需要启用 JavaScript 与 WebGL。</div></noscript>
+<script>/*__JS__*/</script>
+</body>
+</html>
